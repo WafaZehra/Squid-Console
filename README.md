@@ -5,13 +5,12 @@ A tool that turns **any CSV** into a trained anomaly detector — no fixed schem
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C)
 ![Flask](https://img.shields.io/badge/Flask-3.0+-black)
-![License](https://img.shields.io/badge/license-MIT-green)
 
 > Originally built around the classic [UCI Sonar dataset](https://archive.ics.uci.edu/dataset/151/connectionist+bench+sonar+mines+vs+rocks) (60 numeric features, rock-vs-mine classification). This version generalizes that pipeline to work on any tabular CSV — sensor logs, transaction records, lab data, anything.
 
 ## Demo
 
-*(Add a screenshot or short GIF of the console here — the findings table and signal trace chart are the most visual parts.)*
+<img width="1357" height="618" alt="Animation" src="https://github.com/user-attachments/assets/0e3ec342-d45f-478d-b0d0-a8f7d1c2dfba" />
 
 ## Why I built this
 
@@ -87,7 +86,7 @@ Then open **http://127.0.0.1:5000** — Flask serves both the API and the fronte
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/preview` | POST | Upload a CSV, get back column types, row count, and a preview |
-| `/api/analyze` | POST | Run the full pipeline on a previously uploaded file (`file_id`), returns training metrics, threshold, per-row results, and feature summaries |
+| `/api/analyze` | POST | Run the full pipeline on a previously uploaded file (`file_id`), returns training metrics, threshold, per-row results and feature summaries |
 
 ## Limitations
 
@@ -101,7 +100,3 @@ Then open **http://127.0.0.1:5000** — Flask serves both the API and the fronte
 - Job queue for large files instead of synchronous training
 - Model persistence — save/reload a trained autoencoder instead of retraining per scan
 - Dockerfile + basic CI (lint/test on push)
-
-## License
-
-MIT — see [LICENSE](LICENSE).
