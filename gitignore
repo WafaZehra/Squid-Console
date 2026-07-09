@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# Uploaded files (runtime, not source)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS/editor
+.DS_Store
+.vscode/

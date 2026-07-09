@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Squid — Anomaly Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="grid-backdrop" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◎</span>
+    <div class="brand-text">
+      <span class="brand-name">SQUID</span>
+      <span class="brand-tag">Anomaly Console</span>
+    </div>
+  </div>
+  <div class="status" id="statusPill">
+    <span class="status-dot"></span>
+    <span id="statusLabel">STANDBY</span>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- Stage 1: intake -->
+  <section id="stageIntake" class="stage">
+    <div class="intake-panel">
+      <ol class="pipeline-strip">
+        <li class="pipeline-step"><span class="pipeline-index">01</span>Ingest</li>
+        <li class="pipeline-step"><span class="pipeline-index">02</span>Normalize</li>
+        <li class="pipeline-step"><span class="pipeline-index">03</span>Encode</li>
+        <li class="pipeline-step"><span class="pipeline-index">04</span>Reconstruct</li>
+        <li class="pipeline-step"><span class="pipeline-index">05</span>Flag</li>
+      </ol>
+
+      <div class="dropzone" id="dropzone">
+        <div class="sweep" aria-hidden="true"></div>
+        <p class="dropzone-title">Drop a CSV to begin the scan</p>
+        <p class="dropzone-sub">Sensor logs, transactions, lab readings, anything tabular. Numeric or mixed columns. No label column required.</p>
+        <label class="browse-btn">
+          Choose file
+          <input type="file" id="fileInput" accept=".csv" hidden />
+        </label>
+        <p class="dropzone-meta" id="dropzoneMeta">No file selected</p>
+      </div>
+
+      <p class="intake-error" id="intakeError" hidden></p>
+    </div>
+  </section>
+
+  <!-- Stage 2: configure -->
+  <section id="stageConfigure" class="stage hidden">
+    <div class="panel-card">
+      <div class="panel-card-head">
+        <div>
+          <p class="eyebrow">Step 2 — Configure</p>
+          <h2 id="configFileName">—</h2>
+        </div>
+        <button class="ghost-btn" id="btnChangeFile">Choose a different file</button>
+      </div>
+
+      <div class="config-row">
+        <label class="toggle-row">
+          <input type="checkbox" id="hasHeaderToggle" checked />
+          <span>First row is a header</span>
+        </label>
+        <span class="config-hint" id="rowCountHint">—</span>
+      </div>
+
+      <div class="config-block">
+        <p class="block-label">Ground truth label <span class="optional-tag">optional</span></p>
+        <p class="block-help">If a column already marks known anomalies, the model trains only on normal rows and reports accuracy against it. Otherwise it scores every row on its own.</p>
+        <select id="labelSelect" class="select">
+          <option value="">No label — score unsupervised</option>
+        </select>
+      </div>
+
+      <div class="config-block" id="sensitivityBlock">
+        <p class="block-label">Sensitivity</p>
+        <p class="block-help">How much reconstruction error counts as unusual when there's no label to calibrate against.</p>
+        <div class="segmented" id="sensitivitySegmented">
+          <button type="button" class="segmented-option" data-value="conservative">Conservative<span>top 1%</span></button>
+          <button type="button" class="segmented-option active" data-value="balanced">Balanced<span>top 5%</span></button>
+          <button type="button" class="segmented-option" data-value="sensitive">Sensitive<span>top 10%</span></button>
+        </div>
+      </div>
+
+      <div class="config-block">
+        <p class="block-label">Columns</p>
+        <p class="block-help">Uncheck anything that shouldn't feed the model — identifiers, free text, reference-only fields.</p>
+        <div class="column-list" id="columnList"></div>
+      </div>
+
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <label class="field-row">
+          <span>Training epochs</span>
+          <input type="number" id="epochsInput" min="20" max="300" value="120" />
+        </label>
+      </details>
+
+      <p class="intake-error" id="configError" hidden></p>
+
+      <button class="primary-btn" id="btnRunScan">Run scan</button>
+    </div>
+  </section>
+
+  <!-- Stage 3: scanning -->
+  <section id="stageScanning" class="stage hidden">
+    <div class="scan-panel">
+      <div class="scan-rings" aria-hidden="true"></div>
+      <p class="scan-status" id="scanStatus">Initializing model…</p>
+      <div class="scan-log" id="scanLog"></div>
+    </div>
+  </section>
+
+  <!-- Stage 4: results -->
+  <section id="stageResults" class="stage hidden">
+    <div class="results-head">
+      <div>
+        <p class="eyebrow" id="resultFileMeta">—</p>
+        <h2 id="resultModeLabel">—</h2>
+      </div>
+      <div class="results-actions">
+        <button class="ghost-btn" id="btnExport">Export flagged rows (.csv)</button>
+        <button class="ghost-btn" id="btnNewScan">New scan</button>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="panel-card scope-card">
+      <div class="panel-card-head">
+        <div>
+          <p class="eyebrow">Signal trace</p>
+          <h3>Reconstruction error by row</h3>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot dot-normal"></span>Within range</span>
+          <span class="legend-item"><span class="dot dot-anomaly"></span>Flagged</span>
+          <span class="legend-item"><span class="dot dot-threshold"></span>Threshold</span>
+        </div>
+      </div>
+      <div id="scopeChart" class="scope-chart"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel-card">
+        <p class="eyebrow">Distribution</p>
+        <h3>Error spread, normal vs. flagged</h3>
+        <div id="histChart" class="hist-chart"></div>
+      </div>
+      <div class="panel-card">
+        <p class="eyebrow">Training</p>
+        <h3>Reconstruction loss</h3>
+        <div id="lossChart" class="loss-chart"></div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-head">
+        <div>
+          <p class="eyebrow">Findings</p>
+          <h3 id="tableTitle">Flagged rows</h3>
+        </div>
+        <div class="table-controls">
+          <input type="search" id="tableSearch" placeholder="Search row # or feature…" />
+          <div class="table-toggle" id="tableToggle">
+            <button type="button" class="toggle-option active" data-view="anomalies">Flagged only</button>
+            <button type="button" class="toggle-option" data-view="all">All rows</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <button class="ghost-btn small" id="btnPrev">← Prev</button>
+        <span id="pageInfo">Page 1 of 1</span>
+        <button class="ghost-btn small" id="btnNext">Next →</button>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <p class="eyebrow">Feature profile</p>
+      <h3>Normal vs. flagged, by column</h3>
+      <div id="featureSummary" class="feature-summary"></div>
+    </div>
+
+    <div class="panel-card log-card">
+      <p class="eyebrow">System notes</p>
+      <div class="console-log" id="notesLog"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
